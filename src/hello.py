@@ -1,7 +1,9 @@
 import json
 import boto3
+import requests
 from typing import Dict
 from aws_xray_sdk.core import xray_recorder
+import logging
 
 
 def get_secret():
@@ -24,22 +26,25 @@ def get_secret():
 
 @xray_recorder.capture("Lambda Request")
 def handler(event, context):
+    logging.info("Event:", event)
     secrets = get_secret()
     subsegment = xray_recorder.begin_subsegment('annotations')
-    user_details = {
-        "name": "Abcd",
-        "unique_id": 1234,
-        "address": "xyz country and state.",
-        "zip_code": 123232,
-        "phone_number": 23423423432,
-        "secrets": secrets if secrets is not None else None,
-    }
-
-    subsegment.put_annotation("name", user_details.get("name"))
-    subsegment.put_metadata("body", event)
+    URL = 'https://random-data-api.com/api/v2/users?size=50'
+    res = requests.get(URL)
+    if res is None:
+        return {
+            'statusCode': 500,
+            'headers': {'Content-Type': 'text/plain'},
+            'body': json.dumps({"Error": "Internal Server Error"})
+        }
+    logging.info("Responses:", res.json())
+    subsegment.put_annotation("name", res.status_code)
+    subsegment.put_metadata("Res", res.json())
+    subsegment.put_http_meta(key='Method', value='GET')
+    subsegment.set_sql("SELECT * FROM TEST WHERE ID = 123")
     xray_recorder.end_subsegment()
     return {
         'statusCode': 200,
         'headers': {'Content-Type': 'text/plain'},
-        'body': json.dumps(event),
+        'body': json.dumps(res.json()),
     }

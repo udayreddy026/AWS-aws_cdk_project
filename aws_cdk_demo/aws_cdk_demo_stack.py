@@ -1,5 +1,5 @@
 from constructs import Construct
-
+import aws_cdk as CDK
 from aws_cdk import (
     Stack,
     aws_lambda as _lambda,
@@ -34,15 +34,25 @@ class AwsCdkDemoStack(Stack):
                                            description="Boto3 Common Lambda Layer.",
                                            )
 
-        aws_xray_layer = _lambda.LayerVersion(self, "aws-x-ray",
+        aws_xray_layer = _lambda.LayerVersion(self, "aws_xray",
                                               code=_lambda.Code.from_asset(
                                                   'layers/aws_xray'),
                                               compatible_runtimes=[
                                                   _lambda.Runtime.PYTHON_3_8, _lambda.Runtime.PYTHON_3_9],
                                               compatible_architectures=[
                                                   _lambda.Architecture.X86_64],
-                                              description="X-Ray Lambda Layer.",
+                                              description="AWS XRAY Lambda Layer.",
                                               )
+
+        requests = _lambda.LayerVersion(self, "requests",
+                                        code=_lambda.Code.from_asset(
+                                            'layers/requests'),
+                                        compatible_runtimes=[
+                                            _lambda.Runtime.PYTHON_3_7, _lambda.Runtime.PYTHON_3_8, _lambda.Runtime.PYTHON_3_9],
+                                        compatible_architectures=[
+                                            _lambda.Architecture.ARM_64],
+                                        description="Requests Lambda Layer.",
+                                        )
 
         # Defines an AWS Lambda resource
         my_lambda = _lambda.Function(
@@ -52,8 +62,9 @@ class AwsCdkDemoStack(Stack):
             code=_lambda.Code.from_asset('src'),
             handler='hello.handler',
             tracing=_lambda.Tracing.ACTIVE,
-            layers=[boto3_layer, aws_xray_layer],
-            description="Demo Lambda Function."
+            layers=[boto3_layer, aws_xray_layer, requests],
+            description="Demo Lambda Function.",
+            timeout=CDK.Duration.minutes(7)
         )
 
         # Creating API Endpoint
